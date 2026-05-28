@@ -1,0 +1,47 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "silver_suite",
+  "meta": {
+    "great_expectations_version": "0.18.9",
+    "layer": "silver",
+    "description": "Type, nullability, and business-rule checks on cleansed data"
+  },
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 1, "max_value": 50000000 }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "id" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "event_date" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "amount" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "id", "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "source_system", "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "amount", "min_value": 0, "mostly": 0.999 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "event_date", "mostly": 0.98 }
+    },
+    {
+      "expectation_type": "expect_compound_columns_to_be_unique",
+      "kwargs": { "column_list": ["id", "event_date", "source_system"] }
+    }
+  ]
+}

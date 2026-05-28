@@ -1,0 +1,41 @@
+---
+# Source system definitions
+# Used by ingestion scripts to determine what to pull and where to put it.
+# Credentials are NEVER stored here — they come from environment variables.
+
+sources:
+  - id: sftp_crm
+    type: sftp
+    enabled: true
+    description: "CRM daily export via SFTP"
+    schedule: "0 1 * * *"
+    remote_dir: /exports/crm
+    file_pattern: "crm_events_*.csv"
+    format: csv
+    landing_subdir: sftp/crm
+    source_system_label: crm
+
+  - id: api_events
+    type: rest_api
+    enabled: true
+    description: "Events REST API (paginated)"
+    schedule: "30 1 * * *"
+    endpoint: /v1/events
+    format: json
+    pagination:
+      type: page
+      page_size: 500
+      max_pages: 200
+    landing_subdir: api/events
+    source_system_label: events_api
+
+  - id: db_transactions
+    type: jdbc
+    enabled: true
+    description: "Transactions table from operational DB"
+    schedule: "0 2 * * *"
+    table: transactions
+    date_column: created_at
+    jdbc_tool: spark
+    landing_subdir: db/transactions
+    source_system_label: ops_db

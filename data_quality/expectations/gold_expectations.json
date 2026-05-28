@@ -1,0 +1,43 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "gold_suite",
+  "meta": {
+    "great_expectations_version": "0.18.9",
+    "layer": "gold",
+    "description": "Aggregate completeness and KPI sanity checks"
+  },
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 1, "max_value": 1000000 }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "source_system" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "total_records" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "total_amount" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "source_system", "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "total_records", "min_value": 1, "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "total_amount", "min_value": 0, "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "avg_amount", "min_value": 0, "mostly": 1.0 }
+    }
+  ]
+}

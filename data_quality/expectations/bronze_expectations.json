@@ -1,0 +1,44 @@
+{
+  "data_asset_type": null,
+  "expectation_suite_name": "bronze_suite",
+  "meta": {
+    "great_expectations_version": "0.18.9",
+    "layer": "bronze",
+    "description": "Minimal integrity checks on raw ingested data"
+  },
+  "expectations": [
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 0, "max_value": 50000000 },
+      "meta": { "notes": "Bronze can be empty if source sent nothing" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "pipeline_run_id" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "ingested_at" }
+    },
+    {
+      "expectation_type": "expect_column_to_exist",
+      "kwargs": { "column": "source_system" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "pipeline_run_id", "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "source_system", "mostly": 1.0 }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": {
+        "column": "ingested_at",
+        "regex": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}",
+        "mostly": 1.0
+      }
+    }
+  ]
+}

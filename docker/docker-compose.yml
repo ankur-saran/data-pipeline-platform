@@ -1,0 +1,179 @@
+---
+# =============================================================================
+# data-pipeline-platform — local development cluster
+# Services: Postgres, Redis, Airflow (webserver + scheduler + worker), Spark
+# =============================================================================
+version: "3.9"
+
+x-airflow-common: &airflow-common
+  build:
+    context: ..
+    dockerfile: docker/airflow.Dockerfile
+  env_file: ../.env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: ${AIRFLOW__CORE__SQL_ALCHEMY_CONN}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CELERY__RESULT_BACKEND: ${AIRFLOW__CELERY__RESULT_BACKEND}
+    AIRFLOW__CELERY__BROKER_URL: ${AIRFLOW__CELERY__BROKER_URL}
+    AIRFLOW__WEBSERVER__SECRET_KEY: supersecretkey_change_in_prod
+    PIPELINE_ENV: ${PIPELINE_ENV:-dev}
+    BRONZE_BASE_PATH: ${BRONZE_BASE_PATH:-/data/bronze}
+    SILVER_BASE_PATH: ${SILVER_BASE_PATH:-/data/silver}
+    GOLD_BASE_PATH: ${GOLD_BASE_PATH:-/data/gold}
+    INGESTION_LANDING_PATH: ${INGESTION_LANDING_PATH:-/data/landing}
+    SPARK_MASTER_URL: ${SPARK_MASTER_URL:-spark://spark-master:7077}
+  volumes:
+    - ../airflow/dags:/opt/airflow/dags:ro
+    - ../airflow/plugins:/opt/airflow/plugins:ro
+    - ../airflow/config:/opt/airflow/config:ro
+    - airflow-logs:/opt/airflow/logs
+    - pipeline-data:/data
+    - ../spark-jobs/target:/opt/spark-jobs:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  user: "${AIRFLOW_UID:-50000}:0"
+  networks:
+    - pipeline-net
+
+services:
+  # ---------------------------------------------------------------------------
+  postgres:
+  # ---------------------------------------------------------------------------
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+    networks:
+      - pipeline-net
+
+  # ---------------------------------------------------------------------------
+  redis:
+  # ---------------------------------------------------------------------------
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+    networks:
+      - pipeline-net
+
+  # ---------------------------------------------------------------------------
+  airflow-init:
+  # ---------------------------------------------------------------------------
+    <<: *airflow-common
+    command: >
+      bash -c "
+        airflow db upgrade &&
+        airflow users create --username admin --firstname Admin --lastname User
+          --role Admin --email admin@pipeline.local --password admin &&
+        airflow connections import /opt/airflow/config/connections.yaml || true
+      "
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  airflow-webserver:
+  # ---------------------------------------------------------------------------
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # ---------------------------------------------------------------------------
+  airflow-scheduler:
+  # ---------------------------------------------------------------------------
+    <<: *airflow-common
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  # ---------------------------------------------------------------------------
+  airflow-worker:
+  # ---------------------------------------------------------------------------
+    <<: *airflow-common
+    command: celery worker
+    environment:
+      DUMB_INIT_SETSID: "0"
+    restart: unless-stopped
+    depends_on:
+      airflow-scheduler:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  spark-master:
+  # ---------------------------------------------------------------------------
+    build:
+      context: ..
+      dockerfile: docker/spark.Dockerfile
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      SPARK_MASTER_HOST: spark-master
+    ports:
+      - "7077:7077"
+      - "8081:8080"
+    volumes:
+      - pipeline-data:/data
+      - ../spark-jobs/target:/opt/spark-jobs:ro
+    networks:
+      - pipeline-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  spark-worker:
+  # ---------------------------------------------------------------------------
+    build:
+      context: ..
+      dockerfile: docker/spark.Dockerfile
+    command: >
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+    environment:
+      SPARK_WORKER_MEMORY: 2g
+      SPARK_WORKER_CORES: 2
+    volumes:
+      - pipeline-data:/data
+      - ../spark-jobs/target:/opt/spark-jobs:ro
+    networks:
+      - pipeline-net
+    depends_on:
+      - spark-master
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+volumes:
+  postgres-data:
+  airflow-logs:
+  pipeline-data:
+
+networks:
+  pipeline-net:
+    driver: bridge

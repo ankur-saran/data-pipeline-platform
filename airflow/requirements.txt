@@ -1,0 +1,12 @@
+apache-airflow==2.8.1
+apache-airflow-providers-apache-spark==4.3.0
+apache-airflow-providers-ssh==3.11.0
+apache-airflow-providers-http==4.7.0
+apache-airflow-providers-postgres==5.7.1
+apache-airflow-providers-redis==3.5.0
+great-expectations==0.18.9
+pyyaml==6.0.1
+requests==2.31.0
+psycopg2-binary==2.9.9
+celery[redis]==5.3.6
+flower==2.0.1

@@ -1,0 +1,32 @@
+---
+# Airflow connection definitions
+# Import with: airflow connections import connections.yaml
+# Credentials are injected from environment variables at runtime.
+
+- conn_id: spark_default
+  conn_type: spark
+  host: "{{ env('SPARK_MASTER_URL', 'spark://spark-master:7077') }}"
+  extra:
+    deploy_mode: client
+    spark_home: /opt/spark
+
+- conn_id: postgres_pipeline
+  conn_type: postgres
+  host: postgres
+  schema: pipeline
+  login: "{{ env('DB_USER') }}"
+  password: "{{ env('DB_PASSWORD') }}"
+  port: 5432
+
+- conn_id: sftp_source
+  conn_type: sftp
+  host: "{{ env('SFTP_HOST') }}"
+  port: "{{ env('SFTP_PORT', '22') }}"
+  login: "{{ env('SFTP_USER') }}"
+  password: "{{ env('SFTP_PASSWORD') }}"
+
+- conn_id: http_api_source
+  conn_type: http
+  host: "{{ env('API_BASE_URL') }}"
+  extra:
+    api_key: "{{ env('API_KEY') }}"
